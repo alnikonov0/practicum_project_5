@@ -1,1 +1,0 @@
-update public.clients SET name = 'client_name_21', login = 'arthur_dent' where client_id = 42

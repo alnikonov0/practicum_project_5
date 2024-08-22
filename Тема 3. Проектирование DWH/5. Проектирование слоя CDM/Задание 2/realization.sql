@@ -1,1 +1,0 @@
-ALTER TABLE cdm.dm_settlement_report ADD CONSTRAINT PRIMARY KEY ID
