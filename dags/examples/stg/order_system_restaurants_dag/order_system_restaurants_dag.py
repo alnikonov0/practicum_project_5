@@ -4,8 +4,14 @@ import pendulum
 from airflow.decorators import dag, task
 from airflow.models.variable import Variable
 from examples.stg.order_system_restaurants_dag.pg_saver import PgSaver
+from examples.stg.order_system_restaurants_dag.users_pg_saver import UsersPgSaver
+from examples.stg.order_system_restaurants_dag.orders_pg_saver import OrdersPgSaver
 from examples.stg.order_system_restaurants_dag.restaurant_loader import RestaurantLoader
 from examples.stg.order_system_restaurants_dag.restaurant_reader import RestaurantReader
+from examples.stg.order_system_restaurants_dag.users_loader import UsersLoader
+from examples.stg.order_system_restaurants_dag.users_reader import UsersReader
+from examples.stg.order_system_restaurants_dag.order_loader import OrdersLoader
+from examples.stg.order_system_restaurants_dag.orders_reader import OrdersReader
 from lib import ConnectionBuilder, MongoConnect
 
 log = logging.getLogger(__name__)
@@ -47,10 +53,49 @@ def sprint5_example_stg_order_system_restaurants():
         # Запускаем копирование данных.
         loader.run_copy()
 
+    @task()
+    def load_users():
+        # Инициализируем класс, в котором реализована логика сохранения.
+        users_pg_saver = UsersPgSaver()
+
+        # Инициализируем подключение у MongoDB.
+        mongo_connect = MongoConnect(cert_path, db_user, db_pw, host, rs, db, db)
+
+        # Инициализируем класс, реализующий чтение данных из источника.
+        collection_reader = UsersReader(mongo_connect)
+
+        # Инициализируем класс, в котором реализована бизнес-логика загрузки данных.
+        loader = UsersLoader(collection_reader, dwh_pg_connect, users_pg_saver, log)
+
+        # Запускаем копирование данных.
+        loader.run_copy()
+
+    @task()
+    def load_orders():
+        # Инициализируем класс, в котором реализована логика сохранения.
+        users_pg_saver = OrdersPgSaver()
+
+        # Инициализируем подключение у MongoDB.
+        mongo_connect = MongoConnect(cert_path, db_user, db_pw, host, rs, db, db)
+
+        # Инициализируем класс, реализующий чтение данных из источника.
+        collection_reader = OrdersReader(mongo_connect)
+
+        # Инициализируем класс, в котором реализована бизнес-логика загрузки данных.
+        loader = OrdersLoader(collection_reader, dwh_pg_connect, users_pg_saver, log)
+
+        # Запускаем копирование данных.
+        loader.run_copy()
+
+    users_loader = load_users()
     restaurant_loader = load_restaurants()
+    orders_loader = load_orders()
 
     # Задаем порядок выполнения. Таск только один, поэтому зависимостей нет.
+    users_loader
     restaurant_loader  # type: ignore
+    orders_loader
+    
 
 
 order_stg_dag = sprint5_example_stg_order_system_restaurants()  # noqa
